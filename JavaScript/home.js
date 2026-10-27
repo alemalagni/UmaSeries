@@ -429,6 +429,7 @@ function openModal(malId) {
             ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
             <div>
                 <h3 class="modal-title">${escapeHtml(a.title)}</h3>
+                <div class="modal-meta">${a.season} ${a.year} · ${a.rating}</div>
                 <div class="modal-meta">${[a.type, a.score ? `★ ${a.score}` : "", a.airedString].filter(Boolean).join(" · ")}</div>
                 <div class="tag-row">${a.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join("")}</div>
             </div>
