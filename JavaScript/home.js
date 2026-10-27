@@ -399,7 +399,8 @@ function openModal(malId) {
     if (!a) return;
     const overlay = document.getElementById("modalOverlay");
     const box = document.getElementById("modalBox");
-    overlay.class = ('modal-overlay')
+    console.log(overlay.className)
+    overlay.className = ('modal-overlay')
 
     box.innerHTML = `
         <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
@@ -462,7 +463,7 @@ function openModal(malId) {
 }
 
 function closeModal() {
-    document.getElementById("modalOverlay").class = ('modal-overlay-hidden');
+    document.getElementById("modalOverlay").className = ('modal-overlay-hidden');
 }
 
 /* ---------------- Ricerca ---------------- */
