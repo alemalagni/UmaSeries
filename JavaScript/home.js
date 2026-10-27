@@ -215,7 +215,7 @@ function importJson(file) {
 /* ---------------- API jikan-edge ---------------- */
 
 async function searchAnime(query) {
-    const url = `${API_BASE}/anime?q=${encodeURIComponent(query)}&limit=8`;
+    const url = `${API_BASE}/anime?q=${encodeURIComponent(query)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
     const json = await res.json();
