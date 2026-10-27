@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UmaSeries</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="CSS/home.css">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark">兎</span>
+            <h1>UmaSeries</h1>
+        </div>
+
+        <div class="search-wrap">
+            <input id="searchInput" type="text" autocomplete="off" placeholder="Cerca un anime da aggiungere…" aria-label="Cerca anime">
+            <div id="searchPanel" class="search-panel" hidden></div>
+        </div>
+
+        <div id="storageBar" class="storage-bar">
+            <span id="storageDot" class="storage-dot"></span>
+            <span id="storageLabel">Controllo dati…</span>
+            <div id="storageActions" class="storage-actions"></div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero-section">
+            <h2 class="section-title">Cosa guardo ora</h2>
+            <div id="heroCard" class="hero-card">
+                <p class="hero-empty">Caricamento della libreria…</p>
+            </div>
+        </section>
+
+        <section class="library-section">
+            <div class="library-head">
+                <h2 class="section-title">La tua libreria</h2>
+                <div id="tabs" class="tabs">
+                    <button class="tab active" data-tab="watching">In corso <span id="countWatching">0</span></button>
+                    <button class="tab" data-tab="planned">Da vedere <span id="countPlanned">0</span></button>
+                    <button class="tab" data-tab="completed">Completati <span id="countCompleted">0</span></button>
+                </div>
+            </div>
+            <div id="libraryGrid" class="library-grid"></div>
+        </section>
+    </main>
+
+    <div id="modalOverlay" class="modal-overlay" hidden>
+        <div id="modalBox" class="modal-box" role="dialog" aria-modal="true"></div>
+    </div>
+
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+    <input type="file" id="importInput" accept="application/json" hidden>
+
+    <script src="JavaScript/home.js"></script>
+</body>
+
+</html>

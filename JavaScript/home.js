@@ -1,0 +1,619 @@
+"use strict";
+
+/* ============================================================
+   UmaSeries — home.js
+   - Cerca anime tramite l'API jikan-edge (jikan.lucashdo.com)
+   - Salva libreria + dati API in dati.json (via File System Access API,
+     con fallback a localStorage/import-export per i browser che non
+     la supportano)
+   - Suggerisce quale anime guardare adesso
+   ============================================================ */
+
+const API_BASE = "https://jikan.lucashdo.com/v1";
+const SUPPORTS_FS_ACCESS = "showOpenFilePicker" in window;
+
+const state = {
+    data: { anime: {} },
+    storageMode: "checking", // "fs" | "fs-pending" | "local" | "none" | "checking"
+    fileHandle: null,
+    pendingHandle: null,
+    activeTab: "watching",
+    heroIndex: 0,
+    searchResults: [],
+};
+
+/* ---------------- IndexedDB (solo per ricordare il file handle) ---------------- */
+
+function idbOpen() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open("UmaSeriesDB", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("handles");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function idbSet(key, value) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("handles", "readwrite");
+        tx.objectStore("handles").put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function idbGet(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("handles", "readonly");
+        const req = tx.objectStore("handles").get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+/* ---------------- Storage: dati.json ---------------- */
+
+function defaultData() {
+    return { anime: {} };
+}
+
+async function initStorage() {
+    if (SUPPORTS_FS_ACCESS) {
+        const handle = await idbGet("datiJson").catch(() => null);
+        if (handle) {
+            const perm = await handle.queryPermission({ mode: "readwrite" }).catch(() => "denied");
+            if (perm === "granted") {
+                state.fileHandle = handle;
+                state.storageMode = "fs";
+                await loadFromHandle();
+            } else {
+                state.pendingHandle = handle;
+                state.storageMode = "fs-pending";
+                loadLocalFallback();
+            }
+        } else {
+            loadLocalFallback();
+            state.storageMode = hasLocalData() ? "local" : "none";
+        }
+    } else {
+        loadLocalFallback();
+        state.storageMode = "local";
+    }
+    renderStorageBar();
+    renderAll();
+}
+
+function hasLocalData() {
+    return !!localStorage.getItem("umaseries_dati");
+}
+
+function loadLocalFallback() {
+    try {
+        const raw = localStorage.getItem("umaseries_dati");
+        state.data = raw ? JSON.parse(raw) : defaultData();
+    } catch (e) {
+        state.data = defaultData();
+    }
+}
+
+async function loadFromHandle() {
+    try {
+        const file = await state.fileHandle.getFile();
+        const text = await file.text();
+        state.data = text.trim() ? JSON.parse(text) : defaultData();
+    } catch (e) {
+        console.error("Errore leggendo dati.json", e);
+        state.data = defaultData();
+    }
+}
+
+async function connectExisting() {
+    try {
+        const [handle] = await window.showOpenFilePicker({
+            types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+        });
+        state.fileHandle = handle;
+        await idbSet("datiJson", handle);
+        await loadFromHandle();
+        state.storageMode = "fs";
+        renderStorageBar();
+        renderAll();
+        toast("dati.json collegato.");
+    } catch (e) {
+        if (e.name !== "AbortError") toast("Impossibile collegare il file.", true);
+    }
+}
+
+async function connectNew() {
+    try {
+        const handle = await window.showSaveFilePicker({
+            suggestedName: "dati.json",
+            types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+        });
+        state.fileHandle = handle;
+        state.data = hasLocalData() ? state.data : defaultData();
+        await writeToHandle(handle, state.data);
+        await idbSet("datiJson", handle);
+        state.storageMode = "fs";
+        renderStorageBar();
+        renderAll();
+        toast("dati.json creato e collegato.");
+    } catch (e) {
+        if (e.name !== "AbortError") toast("Impossibile creare il file.", true);
+    }
+}
+
+async function reconnect() {
+    try {
+        const perm = await state.pendingHandle.requestPermission({ mode: "readwrite" });
+        if (perm !== "granted") {
+            toast("Permesso non concesso.", true);
+            return;
+        }
+        state.fileHandle = state.pendingHandle;
+        state.pendingHandle = null;
+        await loadFromHandle();
+        state.storageMode = "fs";
+        renderStorageBar();
+        renderAll();
+        toast("dati.json ricollegato.");
+    } catch (e) {
+        toast("Impossibile ricollegare il file.", true);
+    }
+}
+
+async function writeToHandle(handle, data) {
+    const writable = await handle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+}
+
+async function saveData() {
+    if (state.storageMode === "fs" && state.fileHandle) {
+        try {
+            await writeToHandle(state.fileHandle, state.data);
+        } catch (e) {
+            console.error(e);
+            toast("Errore salvando dati.json.", true);
+        }
+    } else {
+        localStorage.setItem("umaseries_dati", JSON.stringify(state.data));
+        if (state.storageMode === "none") state.storageMode = "local";
+    }
+    renderStorageBar();
+}
+
+function exportJson() {
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dati.json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importJson(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            state.data = JSON.parse(reader.result) || defaultData();
+            localStorage.setItem("umaseries_dati", JSON.stringify(state.data));
+            state.storageMode = "local";
+            renderStorageBar();
+            renderAll();
+            toast("dati.json importato.");
+        } catch (e) {
+            toast("File non valido.", true);
+        }
+    };
+    reader.readAsText(file);
+}
+
+/* ---------------- API jikan-edge ---------------- */
+
+async function searchAnime(query) {
+    const url = `${API_BASE}/anime?q=${encodeURIComponent(query)}&limit=8`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : [];
+}
+
+function normalizeApiAnime(item) {
+    return {
+        malId: item.malId,
+        title: item.title || item.titleEnglish || "Senza titolo",
+        titleEnglish: item.titleEnglish || "",
+        image: item.images?.medium || item.images?.large || item.imageUrl || "",
+        episodesTotal: item.episodes || null,
+        synopsis: item.synopsis || "",
+        apiStatus: item.status || "",
+        score: item.score ?? null,
+        type: item.type || "",
+        genres: Array.isArray(item.genres) ? item.genres.map((g) => g.name) : [],
+        url: item.url || "",
+        airedString: item.aired?.string || "",
+    };
+}
+
+/* ---------------- Logica libreria ---------------- */
+
+function addToLibrary(apiAnime, userStatus) {
+    const existing = state.data.anime[apiAnime.malId];
+    const now = new Date().toISOString();
+    const episodesWatched =
+        userStatus === "completed" && apiAnime.episodesTotal ? apiAnime.episodesTotal : 0;
+
+    state.data.anime[apiAnime.malId] = {
+        ...apiAnime,
+        cachedAt: now,
+        userStatus,
+        episodesWatched: existing ? existing.episodesWatched : episodesWatched,
+        addedAt: existing ? existing.addedAt : now,
+        updatedAt: now,
+    };
+    saveData();
+    renderAll();
+    toast(`"${apiAnime.title}" aggiunto a ${labelForStatus(userStatus)}.`);
+}
+
+function updateEntry(malId, patch) {
+    const entry = state.data.anime[malId];
+    if (!entry) return;
+    Object.assign(entry, patch, { updatedAt: new Date().toISOString() });
+
+    if (entry.episodesTotal && entry.episodesWatched >= entry.episodesTotal) {
+        entry.episodesWatched = entry.episodesTotal;
+        if (entry.userStatus !== "completed") {
+            entry.userStatus = "completed";
+            toast(`Hai completato "${entry.title}"! 🎉`);
+        }
+    }
+    saveData();
+    renderAll();
+}
+
+function removeEntry(malId) {
+    delete state.data.anime[malId];
+    saveData();
+    closeModal();
+    renderAll();
+}
+
+function labelForStatus(status) {
+    return { watching: "In corso", planned: "Da vedere", completed: "Completati" }[status] || status;
+}
+
+function entriesByStatus(status) {
+    return Object.values(state.data.anime).filter((a) => a.userStatus === status);
+}
+
+/* ---------------- Suggerimento "Cosa guardo ora" ---------------- */
+
+function pickCandidates() {
+    const watching = entriesByStatus("watching").filter(
+        (a) => !a.episodesTotal || a.episodesWatched < a.episodesTotal
+    );
+    if (watching.length) {
+        return { list: watching.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)), mode: "watching" };
+    }
+    const planned = entriesByStatus("planned");
+    if (planned.length) {
+        return { list: planned.sort((a, b) => a.addedAt.localeCompare(b.addedAt)), mode: "planned" };
+    }
+    return { list: [], mode: "empty" };
+}
+
+function renderHero() {
+    const host = document.getElementById("heroCard");
+    const { list, mode } = pickCandidates();
+
+    if (mode === "empty") {
+        host.innerHTML = `<p class="hero-empty">Aggiungi un anime alla libreria per sapere cosa guardare.</p>`;
+        return;
+    }
+
+    if (state.heroIndex >= list.length) state.heroIndex = 0;
+    const pick = list[state.heroIndex];
+    const total = pick.episodesTotal;
+    const watched = pick.episodesWatched || 0;
+    const pct = total ? Math.min(100, Math.round((watched / total) * 100)) : 0;
+
+    host.innerHTML = `
+        ${pick.image ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
+        <div class="hero-body">
+            <span class="hero-eyebrow">${mode === "watching" ? "Continua a vedere" : "Inizia a vedere"}</span>
+            <h3 class="hero-title">${escapeHtml(pick.title)}</h3>
+            <span class="hero-meta">${total ? `Episodio ${watched + (mode === "watching" ? 1 : 0) > total ? total : watched + (mode === "watching" ? 1 : 0)} di ${total}` : `Episodi visti: ${watched}`}</span>
+            <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="hero-actions">
+                <button class="btn btn-primary" id="heroWatchBtn">Segna episodio visto</button>
+                ${list.length > 1 ? `<button class="btn btn-ghost" id="heroSkipBtn">Scegli un altro</button>` : ""}
+                <button class="btn btn-ghost" id="heroDetailBtn">Dettagli</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("heroWatchBtn").addEventListener("click", () => {
+        updateEntry(pick.malId, { episodesWatched: watched + 1 });
+    });
+    const skipBtn = document.getElementById("heroSkipBtn");
+    if (skipBtn) skipBtn.addEventListener("click", () => {
+        state.heroIndex = (state.heroIndex + 1) % list.length;
+        renderHero();
+    });
+    document.getElementById("heroDetailBtn").addEventListener("click", () => openModal(pick.malId));
+}
+
+/* ---------------- Libreria (tabs + griglia) ---------------- */
+
+function renderLibrary() {
+    document.getElementById("countWatching").textContent = entriesByStatus("watching").length;
+    document.getElementById("countPlanned").textContent = entriesByStatus("planned").length;
+    document.getElementById("countCompleted").textContent = entriesByStatus("completed").length;
+
+    const grid = document.getElementById("libraryGrid");
+    const items = entriesByStatus(state.activeTab).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    if (!items.length) {
+        grid.innerHTML = `<p class="library-empty">Nessun anime in "${labelForStatus(state.activeTab)}".</p>`;
+        return;
+    }
+
+    grid.innerHTML = items
+        .map(
+            (a) => `
+        <button class="anime-card" data-id="${a.malId}">
+            ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
+            <div class="anime-card-body">
+                <span class="anime-card-title">${escapeHtml(a.title)}</span>
+                <span class="anime-card-meta">${a.episodesTotal ? `${a.episodesWatched}/${a.episodesTotal} ep.` : `${a.episodesWatched} ep. visti`}</span>
+            </div>
+        </button>
+    `
+        )
+        .join("");
+
+    grid.querySelectorAll(".anime-card").forEach((card) => {
+        card.addEventListener("click", () => openModal(card.dataset.id));
+    });
+}
+
+document.getElementById("tabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab");
+    if (!btn) return;
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    btn.classList.add("active");
+    state.activeTab = btn.dataset.tab;
+    renderLibrary();
+});
+
+/* ---------------- Modale dettaglio ---------------- */
+
+function openModal(malId) {
+    const a = state.data.anime[malId];
+    if (!a) return;
+    const overlay = document.getElementById("modalOverlay");
+    const box = document.getElementById("modalBox");
+
+    box.innerHTML = `
+        <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
+        <div class="modal-head">
+            ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
+            <div>
+                <h3 class="modal-title">${escapeHtml(a.title)}</h3>
+                <div class="modal-meta">${[a.type, a.score ? `★ ${a.score}` : "", a.airedString].filter(Boolean).join(" · ")}</div>
+                <div class="tag-row">${a.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join("")}</div>
+            </div>
+        </div>
+        ${a.synopsis ? `<p class="modal-synopsis">${escapeHtml(a.synopsis)}</p>` : ""}
+        <div class="field-row">
+            <label for="statusSelect">Stato</label>
+            <select id="statusSelect">
+                <option value="watching" ${a.userStatus === "watching" ? "selected" : ""}>In corso</option>
+                <option value="planned" ${a.userStatus === "planned" ? "selected" : ""}>Da vedere</option>
+                <option value="completed" ${a.userStatus === "completed" ? "selected" : ""}>Completato</option>
+            </select>
+        </div>
+        <div class="field-row">
+            <label>Episodi visti</label>
+            <div class="stepper">
+                <button id="epMinus" aria-label="Riduci">−</button>
+                <input id="epInput" type="number" min="0" ${a.episodesTotal ? `max="${a.episodesTotal}"` : ""} value="${a.episodesWatched}">
+                <button id="epPlus" aria-label="Aumenta">+</button>
+            </div>
+        </div>
+        ${a.url ? `<p class="hero-meta"><a href="${escapeAttr(a.url)}" target="_blank" rel="noopener" style="color:var(--accent)">Pagina su MyAnimeList ↗</a></p>` : ""}
+        <div class="modal-actions">
+            <button class="btn-danger" id="removeBtn">Rimuovi dalla libreria</button>
+        </div>
+    `;
+
+    overlay.hidden = false;
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeModal();
+    }, { once: true });
+
+    document.getElementById("statusSelect").addEventListener("change", (e) => {
+        updateEntry(a.malId, { userStatus: e.target.value });
+        openModal(malId);
+    });
+
+    const epInput = document.getElementById("epInput");
+    function commitEp(val) {
+        let n = Math.max(0, parseInt(val, 10) || 0);
+        if (a.episodesTotal) n = Math.min(n, a.episodesTotal);
+        updateEntry(a.malId, { episodesWatched: n });
+        openModal(malId);
+    }
+    document.getElementById("epMinus").addEventListener("click", () => commitEp(a.episodesWatched - 1));
+    document.getElementById("epPlus").addEventListener("click", () => commitEp(a.episodesWatched + 1));
+    epInput.addEventListener("change", () => commitEp(epInput.value));
+
+    document.getElementById("removeBtn").addEventListener("click", () => {
+        if (confirm(`Rimuovere "${a.title}" dalla libreria?`)) removeEntry(a.malId);
+    });
+}
+
+function closeModal() {
+    document.getElementById("modalOverlay").hidden = true;
+}
+
+/* ---------------- Ricerca ---------------- */
+
+let searchDebounce = null;
+const searchInput = document.getElementById("searchInput");
+const searchPanel = document.getElementById("searchPanel");
+
+searchInput.addEventListener("input", () => {
+    clearTimeout(searchDebounce);
+    const q = searchInput.value.trim();
+    if (q.length < 2) {
+        searchPanel.hidden = true;
+        return;
+    }
+    searchDebounce = setTimeout(() => runSearch(q), 500);
+});
+
+document.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-wrap")) searchPanel.hidden = true;
+});
+
+async function runSearch(query) {
+    searchPanel.hidden = false;
+    searchPanel.innerHTML = `<p class="search-panel-msg">Ricerca in corso…</p>`;
+    try {
+        const raw = await searchAnime(query);
+        state.searchResults = raw.map(normalizeApiAnime);
+        renderSearchResults();
+    } catch (e) {
+        searchPanel.innerHTML = `<p class="search-panel-msg">Errore nella ricerca. Riprova tra poco.</p>`;
+    }
+}
+
+function renderSearchResults() {
+    if (!state.searchResults.length) {
+        searchPanel.innerHTML = `<p class="search-panel-msg">Nessun risultato.</p>`;
+        return;
+    }
+    searchPanel.innerHTML = state.searchResults
+        .map(
+            (a) => `
+        <div class="search-result">
+            ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
+            <div class="search-result-info">
+                <strong>${escapeHtml(a.title)}</strong>
+                <span>${[a.type, a.episodesTotal ? `${a.episodesTotal} ep.` : ""].filter(Boolean).join(" · ")}</span>
+            </div>
+            <div class="search-add-group">
+                <button data-status="watching" data-id="${a.malId}">In corso</button>
+                <button data-status="planned" data-id="${a.malId}">Da vedere</button>
+                <button data-status="completed" data-id="${a.malId}">Visto</button>
+            </div>
+        </div>
+    `
+        )
+        .join("");
+
+    searchPanel.querySelectorAll(".search-add-group button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const anime = state.searchResults.find((a) => String(a.malId) === btn.dataset.id);
+            if (anime) addToLibrary(anime, btn.dataset.status);
+            searchPanel.hidden = true;
+            searchInput.value = "";
+        });
+    });
+}
+
+/* ---------------- Barra storage ---------------- */
+
+function renderStorageBar() {
+    const dot = document.getElementById("storageDot");
+    const label = document.getElementById("storageLabel");
+    const actions = document.getElementById("storageActions");
+    dot.className = "storage-dot";
+    actions.innerHTML = "";
+
+    if (state.storageMode === "fs") {
+        dot.classList.add("ok");
+        label.textContent = "dati.json collegato";
+    } else if (state.storageMode === "fs-pending") {
+        dot.classList.add("warn");
+        label.textContent = "dati.json da ricollegare";
+        actions.innerHTML = `<button id="reconnectBtn">Ricollega</button>`;
+        actions.querySelector("#reconnectBtn").addEventListener("click", reconnect);
+    } else if (state.storageMode === "local") {
+        dot.classList.add("warn");
+        label.textContent = SUPPORTS_FS_ACCESS ? "salvataggio locale (non su dati.json)" : "salvataggio nel browser";
+        actions.innerHTML = buildConnectActions();
+    } else {
+        label.textContent = "nessun salvataggio collegato";
+        actions.innerHTML = buildConnectActions();
+    }
+}
+
+function buildConnectActions() {
+    if (SUPPORTS_FS_ACCESS) {
+        return `
+            <button id="connectExistingBtn">Apri dati.json</button>
+            <button id="connectNewBtn">Crea dati.json</button>
+        `;
+    }
+    return `
+        <button id="importBtn">Importa dati.json</button>
+        <button id="exportBtn">Esporta dati.json</button>
+    `;
+}
+
+document.getElementById("storageActions").addEventListener("click", (e) => {
+    if (e.target.id === "connectExistingBtn") connectExisting();
+    if (e.target.id === "connectNewBtn") connectNew();
+    if (e.target.id === "exportBtn") exportJson();
+    if (e.target.id === "importBtn") document.getElementById("importInput").click();
+});
+
+document.getElementById("importInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importJson(file);
+    e.target.value = "";
+});
+
+/* ---------------- Toast ---------------- */
+
+function toast(message, isError = false) {
+    const host = document.getElementById("toastHost");
+    const el = document.createElement("div");
+    el.className = "toast" + (isError ? " error" : "");
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+}
+
+/* ---------------- Utility ---------------- */
+
+function escapeHtml(str) {
+    return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+}
+
+function escapeAttr(str) {
+    return escapeHtml(str);
+}
+
+/* ---------------- Avvio ---------------- */
+
+function renderAll() {
+    renderHero();
+    renderLibrary();
+}
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+});
+
+initStorage();
