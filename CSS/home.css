@@ -577,7 +577,8 @@ select,
 }
 
 .stepper input {
-    width: 48px;
+    min-width: 48px;
+    max-width: 150px;
     text-align: center;
 }
 
