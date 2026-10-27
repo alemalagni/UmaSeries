@@ -259,7 +259,7 @@ function saveAnime(anime) {
         rating: anime.rating,
         season: anime.season,
         year: anime.year
-    }
+    };
 }
 
 /* ---------------- Logica libreria ---------------- */
@@ -400,8 +400,6 @@ function renderLibrary() {
         )
         .join("");
 
-    console.log(items) // Test
-
     grid.querySelectorAll(".anime-card").forEach((card) => {
         card.addEventListener("click", () => openModal(card.dataset.id));
     });
@@ -527,11 +525,28 @@ async function saveAnimeResult(id) {
         const res = await fetch(url);
         if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
         const json = await res.json();
-        if (Array.isArray(json.data)) {
-            saveAnime(json.data);
+        if (json.data) {
+            return json.data
         }
     } catch (e) {
         alert('Errore nel salvataggio');
+        console.error(e);
+        return "Errore";
+    }
+}
+
+async function runSave(id) {
+    try {
+        const raw = await saveAnimeResult(id.malId)
+        if (raw.malId) {
+            const newAnime = saveAnime(raw);
+            return newAnime
+        }
+
+    } catch (e) {
+        alert('Errore nel salvataggio');
+        console.error(e);
+        return "Errore";
     }
 }
 
@@ -560,19 +575,21 @@ function renderSearchResults() {
         .join("");
 
     searchPanel.querySelectorAll(".search-add-group button").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const malId = state.searchResults.find((a) => String(a.malId) === btn.dataset.id);
-            const anime = saveAnimeResult(malId);
-            if (anime) addToLibrary(anime, btn.dataset.status);
-            searchPanel.hidden = true;
-            searchInput.value = "";
-
+        btn.addEventListener("click", async () => {
+            try {
+                const malId = state.searchResults.find((a) => String(a.malId) === btn.dataset.id);
+                const anime = await runSave(malId)
+                addToLibrary(anime, btn.dataset.status);
+                searchPanel.hidden = true;
+                searchInput.value = "";
+            } catch (e) {
+                alert('Errore nel salvataggio');
+                console.error(e);
+                return "Errore";
+            }
         });
     });
-
-    console.log(state.searchResults) // Test
 }
-
 
 /* ---------------- Barra storage ---------------- */
 
