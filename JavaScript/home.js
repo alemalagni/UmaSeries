@@ -399,7 +399,7 @@ function openModal(malId) {
     if (!a) return;
     const overlay = document.getElementById("modalOverlay");
     const box = document.getElementById("modalBox");
-    overlay.hidden = false
+    overlay.class = ('modal-overlay')
 
     box.innerHTML = `
         <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
@@ -462,7 +462,7 @@ function openModal(malId) {
 }
 
 function closeModal() {
-    document.getElementById("modalOverlay").hidden = true;
+    document.getElementById("modalOverlay").class = ('modal-overlay-hidden');
 }
 
 /* ---------------- Ricerca ---------------- */
