@@ -531,7 +531,7 @@ function renderSearchResults() {
         });
     });
 
-    console.log(searchResults) // Test
+    console.log(searchPanel.innerHTML) // Test
 }
 
 /* ---------------- Barra storage ---------------- */
