@@ -225,18 +225,41 @@ async function searchAnime(query) {
 function normalizeApiAnime(item) {
     return {
         malId: item.malId,
-        title: item.title || item.titleEnglish || "Senza titolo",
-        titleEnglish: item.titleEnglish || "",
+        title: item.title || "Senza titolo",
         image: item.images?.medium || item.images?.large || item.imageUrl || "",
         episodesTotal: item.episodes || null,
         synopsis: item.synopsis || "",
-        apiStatus: item.status || "",
+        animeStatus: item.status || "",
         score: item.score ?? null,
         type: item.type || "",
-        genres: Array.isArray(item.genres) ? item.genres.map((g) => g.name) : [],
         url: item.url || "",
-        airedString: item.aired?.string || "",
+        startDate: item.startDate,
+        endDate: item.endDate,
+        rating: item.rating
     };
+}
+
+function saveAnime(anime) {
+    return {
+        malId: anime.malId,
+        title: anime.title || "Senza titolo",
+        titleEnglish: anime.titleEnglish || "Nessun titolo inglese",
+        titleJapanese: anime.titleJapanese || "Nessun titolo giapponese",
+        image: anime.images?.medium || anime.images?.large || anime.imageUrl || "",
+        episodesTotal: anime.episodes || null,
+        synopsis: anime.synopsis || "",
+        animeStatus: anime.status || "",
+        score: anime.score ?? null,
+        type: anime.type || "",
+        genres: Array.isArray(anime.genres) ? anime.genres.map((g) => g.name) : [],
+        url: anime.url || "",
+        airedString: anime.aired?.string || "",
+        startAired: anime.aired?.from || 'Nessuna data di inizio',
+        endAired: anime.aired?.to || 'Nessuna data di fine',
+        rating: anime.rating,
+        season: anime.season,
+        year: anime.year
+    }
 }
 
 /* ---------------- Logica libreria ---------------- */
@@ -498,6 +521,20 @@ async function runSearch(query) {
     }
 }
 
+async function saveAnimeResult(id) {
+    try {
+        const url = `${API_BASE}/anime/${id}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
+        const json = await res.json();
+        if (Array.isArray(json.data)) {
+            saveAnime(json.data);
+        }
+    } catch (e) {
+        alert('Errore nel salvataggio');
+    }
+}
+
 function renderSearchResults() {
     if (!state.searchResults.length) {
         searchPanel.innerHTML = `<p class="search-panel-msg">Nessun risultato.</p>`;
@@ -524,15 +561,18 @@ function renderSearchResults() {
 
     searchPanel.querySelectorAll(".search-add-group button").forEach((btn) => {
         btn.addEventListener("click", () => {
-            const anime = state.searchResults.find((a) => String(a.malId) === btn.dataset.id);
+            const malId = state.searchResults.find((a) => String(a.malId) === btn.dataset.id);
+            const anime = saveAnimeResult(malId);
             if (anime) addToLibrary(anime, btn.dataset.status);
             searchPanel.hidden = true;
             searchInput.value = "";
+
         });
     });
 
-    console.log(searchPanel.innerHTML) // Test
+    console.log(state.searchResults) // Test
 }
+
 
 /* ---------------- Barra storage ---------------- */
 
