@@ -378,6 +378,7 @@ function renderLibrary() {
         .join("");
 
     grid.querySelectorAll(".anime-card").forEach((card) => {
+        console.log(card)
         card.addEventListener("click", () => openModal(card.dataset.id));
     });
 }
@@ -398,6 +399,7 @@ function openModal(malId) {
     if (!a) return;
     const overlay = document.getElementById("modalOverlay");
     const box = document.getElementById("modalBox");
+    overlay.hidden = false
 
     box.innerHTML = `
         <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
