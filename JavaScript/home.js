@@ -367,15 +367,17 @@ function renderLibrary() {
         .map(
             (a) => `
         <button class="anime-card" data-id="${a.malId}">
-            ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
-            <div class="anime-card-body">
-                <span class="anime-card-title">${escapeHtml(a.title)}</span>
-                <span class="anime-card-meta">${a.episodesTotal ? `${a.episodesWatched}/${a.episodesTotal} ep.` : `${a.episodesWatched} ep. visti`}</span>
-            </div>
+        ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
+        <div class="anime-card-body">
+        <span class="anime-card-title">${escapeHtml(a.title)}</span>
+        <span class="anime-card-meta">${a.episodesTotal ? `${a.episodesWatched}/${a.episodesTotal} ep.` : `${a.episodesWatched} ep. visti`}</span>
+        </div>
         </button>
-    `
+        `
         )
         .join("");
+
+    console.log(items) // Test
 
     grid.querySelectorAll(".anime-card").forEach((card) => {
         card.addEventListener("click", () => openModal(card.dataset.id));
@@ -528,6 +530,8 @@ function renderSearchResults() {
             searchInput.value = "";
         });
     });
+
+    console.log(searchResults) // Test
 }
 
 /* ---------------- Barra storage ---------------- */
