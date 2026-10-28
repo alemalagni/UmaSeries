@@ -258,7 +258,9 @@ function saveAnime(anime) {
         endAired: anime.aired?.to || 'Nessuna data di fine',
         rating: anime.rating,
         season: anime.season,
-        year: anime.year
+        year: anime.year,
+        duration: anime.duration,
+        broadcast: anime.broadcast
     };
 }
 
