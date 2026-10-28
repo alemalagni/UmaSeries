@@ -246,6 +246,7 @@ function saveAnime(anime) {
         titleEnglish: anime.titleEnglish || "Nessun titolo inglese",
         titleJapanese: anime.titleJapanese || "Nessun titolo giapponese",
         image: anime.images?.medium || anime.images?.large || anime.imageUrl || "",
+        imageLarge: anime.images?.large || anime.images?.medium || anime.imageUrl || "",
         episodesTotal: anime.episodes || null,
         synopsis: anime.synopsis || "",
         animeStatus: anime.status || "",
