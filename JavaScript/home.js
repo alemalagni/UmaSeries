@@ -262,7 +262,7 @@ function saveAnime(anime) {
         year: anime.year,
         duration: anime.duration,
         broadcast: anime.broadcast,
-        relation: anime.relation
+        relations: anime.relations
     };
 }
 
@@ -394,7 +394,7 @@ function renderLibrary() {
         .map(
             (a) => `
         <button class="anime-card" data-id="${a.malId}">
-        ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
+        ${a.imageLarge ? `<img src="${escapeAttr(a.imageLarge)}" alt="">` : a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
         <div class="anime-card-body">
         <span class="anime-card-title">${escapeHtml(a.title)}</span>
         <span class="anime-card-meta">${a.episodesTotal ? `${a.episodesWatched}/${a.episodesTotal} ep.` : `${a.episodesWatched} ep. visti`}</span>
