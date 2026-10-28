@@ -260,7 +260,8 @@ function saveAnime(anime) {
         season: anime.season,
         year: anime.year,
         duration: anime.duration,
-        broadcast: anime.broadcast
+        broadcast: anime.broadcast,
+        relation: anime.relation
     };
 }
 
