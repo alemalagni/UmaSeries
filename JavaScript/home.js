@@ -222,6 +222,14 @@ async function searchAnime(query) {
     return Array.isArray(json.data) ? json.data : [];
 }
 
+async function fetchEpisode(malId, ep) {
+    const url = `${API_BASE}/anime/${malId}/episodes/${ep}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
+    const json = await res.json();
+    return json.data;
+}
+
 function normalizeApiAnime(item) {
     return {
         malId: item.malId,
@@ -324,21 +332,27 @@ function pickCandidates() {
     const watching = entriesByStatus("watching").filter(
         (a) => !a.episodesTotal || a.episodesWatched < a.episodesTotal
     );
-    if (watching.length) {
-        return { list: watching.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)), mode: "watching" };
-    }
     const planned = entriesByStatus("planned");
-    if (planned.length) {
-        return { list: planned.sort((a, b) => a.addedAt.localeCompare(b.addedAt)), mode: "planned" };
+
+    const candidates = {
+        list: [...watching, ...planned]
+    };
+
+    candidates.list.sort((a, b) => a.addedAt.localeCompare(b.addedAt))
+
+    if (candidates.list.length) {
+        return candidates;
     }
-    return { list: [], mode: "empty" };
+
+    return { list: [] };
 }
 
-function renderHero() {
-    const host = document.getElementById("heroCard");
-    const { list, mode } = pickCandidates();
 
-    if (mode === "empty") {
+async function renderHero() {
+    const host = document.getElementById("heroCard");
+    const { list } = pickCandidates();
+
+    if (list.length === 0) {
         host.innerHTML = `<p class="hero-empty">Aggiungi un anime alla libreria per sapere cosa guardare.</p>`;
         return;
     }
@@ -349,20 +363,34 @@ function renderHero() {
     const watched = pick.episodesWatched || 0;
     const pct = total ? Math.min(100, Math.round((watched / total) * 100)) : 0;
 
+    if (!pick.episode || pick.episode.length === 0) {
+        try {
+            const episode = await fetchEpisode(pick.malId, watched + 1)
+
+            if (episode.title) {
+                updateEntry(pick.malId, { episode: episode })
+            }
+
+        } catch (e) {
+            console.error("episodio non caricato :( ", e, watched)
+        }
+    }
+
     host.innerHTML = `
-        ${pick.image ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
-        <div class="hero-body">
-            <span class="hero-eyebrow">${mode === "watching" ? "Continua a vedere" : "Inizia a vedere"}</span>
-            <h3 class="hero-title">${escapeHtml(pick.title)}</h3>
-            <span class="hero-meta">${total ? `Episodio ${watched + (mode === "watching" ? 1 : 0) > total ? total : watched + (mode === "watching" ? 1 : 0)} di ${total}` : `Episodi visti: ${watched}`}</span>
-            <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-            <div class="hero-actions">
-                <button class="btn btn-primary" id="heroWatchBtn">Segna episodio visto</button>
-                ${list.length > 1 ? `<button class="btn btn-ghost" id="heroSkipBtn">Scegli un altro</button>` : ""}
-                <button class="btn btn-ghost" id="heroDetailBtn">Dettagli</button>
+            ${pick.imageLarge ? `<img class="hero-poster" src="${escapeAttr(pick.imageLarge)}" alt="">` : pick.image ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
+            <div class="hero-body">
+                <span class="hero-eyebrow">${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
+                ${pick?.episode ? `<h4 class="hero-anime">${pick.title}</h4>` : ""}
+                <h3 class="hero-title">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
+                <span class="hero-meta">${total ? `Episodio ${watched + (watched > 0 ? 1 : 0) > total ? total : watched + (watched > 0 ? 1 : 0)} di ${total}` : `Episodi visti: ${watched}`}</span>
+                <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+                <div class="hero-actions">
+                    <button class="btn btn-primary" id="heroWatchBtn">Segna episodio visto</button>
+                    ${list.length > 1 ? `<button class="btn btn-ghost" id="heroSkipBtn">Scegli un altro</button>` : ""}
+                    <button class="btn btn-ghost" id="heroDetailBtn">Dettagli</button>
+                </div>
             </div>
-        </div>
-    `;
+        `;
 
     document.getElementById("heroWatchBtn").addEventListener("click", () => {
         updateEntry(pick.malId, { episodesWatched: watched + 1 });
