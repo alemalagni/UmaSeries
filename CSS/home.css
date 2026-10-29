@@ -266,8 +266,8 @@ main {
 }
 
 .hero-poster {
-    width: 140px;
-    height: 198px;
+    width: 180px;
+    height: 100%;
     border-radius: var(--radius-sm);
     object-fit: cover;
     flex-shrink: 0;
@@ -307,7 +307,8 @@ main {
     transition: color 0.18s ease-in;
 }
 
-#hero-episode:hover {
+#hero-episode:hover,
+#modal-title:hover {
     color: #787878;
     transition: color 0.18s ease-in;
 }
@@ -516,10 +517,11 @@ main {
     background: var(--bg-card);
 }
 
-.modal-title {
+#modal-title {
     font-size: 24px;
     line-height: 1.1;
     margin-bottom: 6px;
+    transition: color 0.18s ease-in;
 }
 
 .modal-meta {

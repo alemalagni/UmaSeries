@@ -413,7 +413,7 @@ async function renderHero() {
     }
 
     host.innerHTML = `
-            ${pick.imageLarge ? `<img class="hero-poster" src="${escapeAttr(pick.imageLarge)}" alt="">` : pick.image ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
+            ${pick.imageLarge ? `<img class="hero-poster" src="${escapeAttr(pick.imageLarge)}" alt="">` : pick.Largeimage ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
             <div class="hero-body">
                 <span class="hero-eyebrow">${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
                 ${pick?.episode ? `<h4 id="hero-title" class="hero-anime">${pick.title}</h4>` : ""}
@@ -544,7 +544,7 @@ function openModal(malId) {
         <div class="modal-head">
             ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
             <div>
-                <h3 class="modal-title">${escapeHtml(a.title)}</h3>
+                <h3 id="modal-title">${escapeHtml(a.title)}</h3>
                 <div class="tag-row"><h4 class="type" style="color: ${colorType}; border-color: ${colorType}">${a.type}</h4> <h5 style="color: ${colorSeason};">${a.season} ${a.year}</h5></div>
                 <div class="modal-meta"><span style="color: ${colorRating};">${a.rating}</span></div>
                 <div class="modal-meta">${[a.score ? `★ ${a.score}` : ""].filter(Boolean).join(" · ")}</div>
@@ -581,6 +581,18 @@ function openModal(malId) {
     overlay.addEventListener("click", (e) => {
         if (e.target === overlay) closeModal();
     }, { once: true });
+
+    const modalTitle = document.getElementById('modal-title')
+
+    modalTitle.addEventListener('click', () => {
+        if (modalTitle.textContent === escapeHtml(a.title)) {
+            modalTitle.innerHTML = escapeHtml(a.titleEnglish);
+        } else if (modalTitle.textContent === escapeHtml(a.titleEnglish)) {
+            modalTitle.innerHTML = escapeHtml(a.titleJapanese);
+        } else {
+            modalTitle.innerHTML = escapeHtml(a.title);
+        }
+    })
 
     document.getElementById("statusSelect").addEventListener("change", (e) => {
         updateEntry(a.malId, { userStatus: e.target.value });
