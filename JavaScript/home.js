@@ -354,12 +354,23 @@ function fixDuration(duration) {
     if (hours > 0) {
         parts.push(`${hours}h`);
     }
-    if (minutes > 0 || hours > 0) {
+    if (minutes > 0) {
         parts.push(`${minutes}m`);
     }
-    parts.push(`${seconds}s`);
+    if (seconds > 0) {
+        parts.push(`${seconds}s`);
+    }
 
     return parts.join(' ');
+}
+
+function fixDate(date) {
+    const [year, month, day] = date.split('-').map(Number);
+    const monthName = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+
+    const parts = [`${day} ${monthName[month - 1]} ${year}`];
+    if (isNaN(year)) return ""
+    return parts
 }
 
 async function renderHero() {
@@ -470,18 +481,37 @@ function openModal(malId) {
     const box = document.getElementById("modalBox");
     overlay.className = ('modal-overlay')
 
+    const colors = {
+        "TV": "#d48a01",
+        "ONA": "#a829a8",
+        "Movie": "#a21414",
+        "winter": "#9dccdc",
+        "spring": "#eeb6bf",
+        "summer": "#dc420b",
+        "fall": "#d08801",
+        "PG": "#d0ae01",
+        "R ": "#b80505",
+        "R+": "#a21414"
+    };
+    const rating = a.rating[0] + a.rating[1]
+    const colorType = colors[a.type] || "none";
+    const colorSeason = colors[a.season] || "none";
+    const colorRating = colors[rating] || "none";
+
     box.innerHTML = `
         <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
         <div class="modal-head">
             ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
             <div>
                 <h3 class="modal-title">${escapeHtml(a.title)}</h3>
-                <div class="modal-meta">${a.season} ${a.year} · ${a.rating}</div>
-                <div class="modal-meta">${[a.type, a.score ? `★ ${a.score}` : "", a.airedString].filter(Boolean).join(" · ")}</div>
-                <div class="modal-meta">${a.duration ? `${a.duration}` : "durata non trovata"}</div>
-                <div class="tag-row">${a.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join("")}</div>
+                <div class="tag-row"><h4 class="type" style="color: ${colorType}; border-color: ${colorType}">${a.type}</h4> <h5 style="color: ${colorSeason};">${a.season} ${a.year}</h5></div>
+                <div class="modal-meta"><span style="color: ${colorRating};">${a.rating}</span></div>
+                <div class="modal-meta">${[a.score ? `★ ${a.score}` : ""].filter(Boolean).join(" · ")}</div>
+                <div class="modal-meta">${a.startAired ? `${fixDate(a.startAired)}` : "?"}${a.endAired ? ` - ${fixDate(a.endAired)}` : ""}</div>
+                <div class="modal-meta">${a.duration ? `${a.duration}` : ""}</div>
+                </div>
             </div>
-        </div>
+        <div class="tag-row">${a.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join("")}</div>
         ${a.synopsis ? `<p class="modal-synopsis">${escapeHtml(a.synopsis)}</p>` : ""}
         <div class="field-row">
             <label for="statusSelect">Stato</label>

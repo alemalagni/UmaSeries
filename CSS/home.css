@@ -481,9 +481,9 @@ main {
     background: var(--bg-elevated);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    max-width: 560px;
+    max-width: 40vw;
     width: 100%;
-    max-height: 85vh;
+    max-height: 80vh;
     overflow-y: auto;
     padding: 26px;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -513,21 +513,33 @@ main {
 .modal-meta {
     color: var(--text-muted);
     font-size: 13px;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
 }
 
 .tag-row {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    align-items: center;
+    margin-bottom: 8px
 }
 
+.type,
 .tag {
     font-size: 11px;
     border: 1px solid var(--border-strong);
     color: var(--text-muted);
     padding: 3px 9px;
     border-radius: 999px;
+}
+
+.tag {
+    font-size: 13px;
+}
+
+h4.type,
+.tag-row h5 {
+    margin: 0;
 }
 
 .modal-synopsis {
