@@ -347,6 +347,20 @@ function pickCandidates() {
     return { list: [] };
 }
 
+function fixDuration(duration) {
+    const [hours, minutes, seconds] = duration.split(':').map(Number);
+    const parts = [];
+
+    if (hours > 0) {
+        parts.push(`${hours}h`);
+    }
+    if (minutes > 0 || hours > 0) {
+        parts.push(`${minutes}m`);
+    }
+    parts.push(`${seconds}s`);
+
+    return parts.join(' ');
+}
 
 async function renderHero() {
     const host = document.getElementById("heroCard");
@@ -382,7 +396,8 @@ async function renderHero() {
                 <span class="hero-eyebrow">${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
                 ${pick?.episode ? `<h4 class="hero-anime">${pick.title}</h4>` : ""}
                 <h3 class="hero-title">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
-                <span class="hero-meta">${total ? `Episodio ${watched + (watched > 0 ? 1 : 0) > total ? total : watched + (watched > 0 ? 1 : 0)} di ${total}` : `Episodi visti: ${watched}`}</span>
+                ${pick?.episode && pick.episode?.duration ? `<h4 class="hero-anime">${fixDuration(pick.episode.duration)}</h4>` : ""}
+                <span class="hero-meta">${total ? `Episodio ${watched + 1 > total ? total : watched + 1} di ${total}` : `Episodi visti: ${watched}`}</span>
                 <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                 <div class="hero-actions">
                     <button class="btn btn-primary" id="heroWatchBtn">Segna episodio visto</button>
