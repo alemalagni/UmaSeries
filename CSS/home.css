@@ -293,11 +293,23 @@ main {
     font-size: 18px;
     font-weight: 600;
     margin: 0;
+    transition: color 0.18s ease-in;
 }
 
-.hero-title {
+#hero-title:hover {
+    color: var(--accent);
+    transition: color 0.18s ease-in;
+}
+
+#hero-episode {
     font-size: 32px;
     line-height: 1.05;
+    transition: color 0.18s ease-in;
+}
+
+#hero-episode:hover {
+    color: #787878;
+    transition: color 0.18s ease-in;
 }
 
 .hero-meta {

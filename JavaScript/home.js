@@ -327,6 +327,17 @@ function entriesByStatus(status) {
 }
 
 /* ---------------- Suggerimento "Cosa guardo ora" ---------------- */
+function fixEpisodeDate(airedStr) {
+    if (!airedStr) return "";
+    let clean = airedStr.replace(/\(JST\)/g, "").trim();
+    // Se è YYYY-MM-DD usa la tua fixDate, altrimenti la formatta al volo
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        return fixDate(clean);
+    }
+    // Per formati tipo "Jul 31, 2026"
+    let d = new Date(clean);
+    return isNaN(d) ? clean : d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 function pickCandidates() {
     const watching = entriesByStatus("watching").filter(
@@ -405,9 +416,9 @@ async function renderHero() {
             ${pick.imageLarge ? `<img class="hero-poster" src="${escapeAttr(pick.imageLarge)}" alt="">` : pick.image ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
             <div class="hero-body">
                 <span class="hero-eyebrow">${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
-                ${pick?.episode ? `<h4 class="hero-anime">${pick.title}</h4>` : ""}
-                <h3 class="hero-title">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
-                ${pick?.episode && pick.episode?.duration ? `<h4 class="hero-anime">${fixDuration(pick.episode.duration)}</h4>` : ""}
+                ${pick?.episode ? `<h4 id="hero-title" class="hero-anime">${pick.title}</h4>` : ""}
+                <h3 id="hero-episode">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
+                ${pick?.episode && pick.episode?.duration ? `<h4 class="hero-anime">${fixEpisodeDate(pick.episode.aired)} - ${fixDuration(pick.episode.duration)}</h4>` : ""}
                 <span class="hero-meta">${total ? `Episodio ${watched + 1 > total ? total : watched + 1} di ${total}` : `Episodi visti: ${watched}`}</span>
                 <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                 <div class="hero-actions">
@@ -415,8 +426,38 @@ async function renderHero() {
                     ${list.length > 1 ? `<button class="btn btn-ghost" id="heroSkipBtn">Scegli un altro</button>` : ""}
                     <button class="btn btn-ghost" id="heroDetailBtn">Dettagli</button>
                 </div>
-            </div>
-        `;
+                </div>
+                `;
+
+    const heroAnime = pick?.episode ? document.getElementById('hero-title') : document.getElementById('hero-episode')
+    const heroEpisode = pick?.episode ? document.getElementById('hero-episode') : null
+
+    heroAnime.addEventListener('click', () => {
+        if (heroAnime.textContent === pick.title) {
+            heroAnime.innerHTML = pick.titleEnglish;
+        } else if (heroAnime.textContent === pick.titleEnglish) {
+            heroAnime.innerHTML = pick.titleJapanese;
+        } else {
+            heroAnime.innerHTML = pick.title;
+        }
+    })
+
+    if (heroEpisode != null) {
+        heroEpisode.addEventListener('click', () => {
+
+            let [romaji, japanese] = pick.episode.titleAlternative.split('(')
+            romaji.trim()
+            japanese = japanese.replace(')', '').trim();
+
+            if (heroEpisode.textContent === pick.episode.title) {
+                heroEpisode.innerHTML = japanese;
+            } else if (heroEpisode.textContent === japanese) {
+                heroEpisode.innerHTML = romaji;
+            } else {
+                heroEpisode.innerHTML = pick.episode.title;
+            }
+        })
+    }
 
     document.getElementById("heroWatchBtn").addEventListener("click", () => {
         updateEntry(pick.malId, { episodesWatched: watched + 1 });
