@@ -411,17 +411,26 @@ async function renderHero() {
         }
     }
 
+    let colorHero;
+    switch (watched) {
+        case 0: colorHero = '#d96b4a';
+            break;
+        default: colorHero = '#d9b44a';
+            break;
+    }
+    host.style.borderLeftColor = colorHero;
+
     host.innerHTML = `
             ${pick.imageLarge ? `<img class="hero-poster" src="${escapeAttr(pick.imageLarge)}" alt="">` : pick.Largeimage ? `<img class="hero-poster" src="${escapeAttr(pick.image)}" alt="">` : ""}
             <div class="hero-body">
-                <span class="hero-eyebrow">${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
+                <span class="hero-eyebrow" style='color: ${colorHero}'>${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
                 ${pick?.episode ? `<h4 id="hero-title" class="hero-anime">${pick.title}</h4>` : ""}
                 <h3 id="hero-episode">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
                 ${pick?.episode && pick.episode?.duration ? `<h4 class="hero-anime">${fixEpisodeDate(pick.episode.aired)} - ${fixDuration(pick.episode.duration)}</h4>` : ""}
                 <span class="hero-meta">${total ? `Episodio ${watched + 1 > total ? total : watched + 1} di ${total}` : `Episodi visti: ${watched}`}</span>
                 <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                 <div class="hero-actions">
-                    <button class="btn btn-primary" id="heroWatchBtn">Segna episodio visto</button>
+                    <button class="btn btn-primary" id="heroWatchBtn" style='background-color: ${colorHero}'>Segna episodio visto</button>
                     ${list.length > 1 ? `<button class="btn btn-ghost" id="heroSkipBtn">Scegli un altro</button>` : ""}
                     <button class="btn btn-ghost" id="heroDetailBtn">Dettagli</button>
                 </div>
@@ -467,11 +476,27 @@ async function renderHero() {
         renderHero();
     });
     document.getElementById("heroDetailBtn").addEventListener("click", () => openModal(pick.malId));
+
+    // const heroCarousel = document.getElementById("heroCarousel");
+    // console.log(list)
+    // heroCarousel.innerHTML = list.map((l) => {
+    //     `<div key=${l.malId}></div>`
+    // })
+
 }
 
 /* ---------------- Libreria (tabs + griglia) ---------------- */
 
+const library = document.getElementById('library')
+const catalogue = document.getElementById('catalogue')
+
 function renderLibrary() {
+    catalogue.addEventListener('click', () => {
+        library.className = 'section-title-unselected'
+        catalogue.className = 'section-title'
+        renderCatalogue()
+    })
+
     document.getElementById("countWatching").textContent = entriesByStatus("watching").length;
     document.getElementById("countPlanned").textContent = entriesByStatus("planned").length;
     document.getElementById("countCompleted").textContent = entriesByStatus("completed").length;
@@ -511,6 +536,51 @@ document.getElementById("tabs").addEventListener("click", (e) => {
     state.activeTab = btn.dataset.tab;
     renderLibrary();
 });
+
+/* ---------------- Catalogo ---------------- */
+async function runSeason() {
+    try {
+        const url = `${API_BASE}/seasons/now`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
+        const json = await res.json();
+        return json.data
+    } catch (e) {
+        console.error("C'è stato un problema nel caricamento anime stagionali, ", e)
+    }
+}
+async function renderCatalogue() {
+    library.addEventListener('click', () => {
+        catalogue.className = 'section-title-unselected'
+        library.className = 'section-title'
+        document.getElementById("tabs").style.display = 'flex';
+        renderLibrary()
+    })
+
+    document.getElementById("tabs").style.display = 'none';
+
+    const seasonAnime = await runSeason();
+    const grid = document.getElementById("libraryGrid");
+
+    grid.innerHTML = seasonAnime
+        .map(
+            (a) => `
+        <button class="anime-card" data-id="${a.malId}">
+        ${a.imageUrl ? `<img src="${escapeAttr(a.imageUrl)}" alt="">` : ""}
+        <div class="anime-card-body">
+        <span class="anime-card-title">${escapeHtml(a.title)}</span>
+        <span class="anime-card-meta">${a.episodes != null ? `${a.episodes} ep.` : ""}</span>
+        </div>
+        </button>
+        `
+        )
+        .join("");
+
+    grid.querySelectorAll(".anime-card").forEach((card) => {
+        card.addEventListener("click", () => openModal(card.dataset.id));
+    });
+}
+
 
 /* ---------------- Modale dettaglio ---------------- */
 

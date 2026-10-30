@@ -42,11 +42,15 @@
             <div id="heroCard" class="hero-card">
                 <p class="hero-empty">Caricamento della libreria…</p>
             </div>
+            <div id="heroCarousel"></div>
         </section>
 
         <section class="library-section">
             <div class="library-head">
-                <h2 class="section-title">La tua libreria</h2>
+                <div class="title-flex">
+                    <h2 class="section-title" id="library">La tua libreria</h2>
+                    <h2 class="section-title-unselected" id="catalogue">Catalogo</h2>
+                </div>
                 <div id="tabs" class="tabs">
                     <button class="tab active" data-tab="watching">In corso <span id="countWatching">0</span></button>
                     <button class="tab" data-tab="planned">Da vedere <span id="countPlanned">0</span></button>

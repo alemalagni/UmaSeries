@@ -241,9 +241,24 @@ main {
     padding: 40px 32px 80px;
 }
 
+.title-flex {
+    display: flex;
+    gap: 20px;
+}
+
 .section-title {
     font-size: 30px;
-    margin-bottom: 18px;
+}
+
+.section-title-unselected {
+    font-size: 30px;
+    color: #787878;
+    transition: color 0.18s ease-in;
+}
+
+.section-title-unselected:hover {
+    color: #cfcfcf;
+    transition: color 0.18s ease-in;
 }
 
 .hero-section {
@@ -352,21 +367,26 @@ main {
 .btn-primary {
     background: var(--accent);
     color: var(--accent-ink);
+    transition: all 0.18s ease-in;
 }
 
 .btn-primary:hover {
-    background: var(--accent-strong);
+    background: #b99020 !important;
+    transition: all 0.18s ease-in;
 }
 
 .btn-ghost {
     background: transparent;
     border: 1px solid var(--border-strong);
     color: var(--text);
+    transition: all 0.18s ease-in;
 }
 
 .btn-ghost:hover {
     border-color: var(--accent);
     color: var(--accent);
+    transition: all 0.18s ease-in;
+
 }
 
 /* ---------- Library ---------- */
@@ -399,6 +419,13 @@ main {
     font-weight: 600;
     display: flex;
     gap: 6px;
+    transition: all 0.18s ease-in;
+
+}
+
+.tab:hover {
+    background-color: #292828;
+    transition: all 0.18s ease-in;
 }
 
 .tab span {
@@ -408,6 +435,7 @@ main {
 .tab.active {
     background: var(--accent);
     color: var(--accent-ink);
+    transition: all 0.18s ease-in;
 }
 
 .tab.active span {
