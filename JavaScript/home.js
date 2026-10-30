@@ -236,7 +236,6 @@ function normalizeApiAnime(item) {
         title: item.title || "Senza titolo",
         image: item.images?.medium || item.images?.large || item.imageUrl || "",
         episodesTotal: item.episodes || null,
-        synopsis: item.synopsis || "",
         animeStatus: item.status || "",
         score: item.score ?? null,
         type: item.type || "",
@@ -539,6 +538,8 @@ function openModal(malId) {
     const colorSeason = colors[a.season] || "none";
     const colorRating = colors[rating] || "none";
 
+    console.log(a?.relations)
+
     box.innerHTML = `
         <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
         <div class="modal-head">
@@ -571,6 +572,17 @@ function openModal(malId) {
             </div>
         </div>
         ${a.url ? `<p class="hero-meta"><a href="${escapeAttr(a.url)}" target="_blank" rel="noopener" style="color:var(--accent)">Pagina su MyAnimeList ↗</a></p>` : ""}
+        ${a.relations && `
+            <div class=relations-flex>
+                ${a.relations.map((r) => `
+                    <div key=${r.malId} class="relation-box">
+                        <h4>${r.relation}</h4>
+                        <h3 class=relation-title>${r.title}</h3>
+                        <span>${r.type}</span>
+                    </div>
+                `).join("")}
+            </div>`
+        }
         <div class="modal-actions">
             <button class="btn-danger" id="removeBtn">Rimuovi dalla libreria</button>
         </div>
