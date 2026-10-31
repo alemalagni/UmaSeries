@@ -213,6 +213,22 @@ function importJson(file) {
     reader.readAsText(file);
 }
 
+/* ---------------- Pages Wrapper ---------------- */
+document.getElementById('catalogue').addEventListener('click', () => {
+    window.location.href = "/catalogue.html";
+})
+
+const accountIcon = document.getElementById('accountIcon')
+accountIcon.addEventListener('click', () => {
+    if (accountIcon.className === 'page-btn-unselected') {
+        accountIcon.className = 'page-btn'
+        document.getElementById('accountBurger').style.display = 'flex'
+    } else {
+        accountIcon.className = 'page-btn-unselected'
+        document.getElementById('accountBurger').style.display = 'none'
+    }
+})
+
 /* ---------------- API jikan-edge ---------------- */
 
 async function searchAnime(query) {
@@ -540,24 +556,6 @@ function renderHeroCarousel(list) {
 
 /* ---------------- Libreria (tabs + griglia) ---------------- */
 
-const library = document.getElementById('library')
-const catalogue = document.getElementById('catalogue')
-
-// Registrati una sola volta: prima venivano riaggiunti a ogni render,
-// accumulandosi e facendo scattare il cambio di sezione più volte di seguito.
-catalogue.addEventListener('click', () => {
-    library.className = 'section-title-unselected'
-    catalogue.className = 'section-title'
-    renderCatalogue()
-})
-
-library.addEventListener('click', () => {
-    catalogue.className = 'section-title-unselected'
-    library.className = 'section-title'
-    document.getElementById("tabs").style.display = 'flex';
-    renderLibrary()
-})
-
 function renderLibrary() {
     document.getElementById("countWatching").textContent = entriesByStatus("watching").length;
     document.getElementById("countPlanned").textContent = entriesByStatus("planned").length;
@@ -598,44 +596,6 @@ document.getElementById("tabs").addEventListener("click", (e) => {
     state.activeTab = btn.dataset.tab;
     renderLibrary();
 });
-
-/* ---------------- Catalogo ---------------- */
-async function runSeason() {
-    try {
-        const url = `${API_BASE}/seasons/now`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Richiesta API fallita (" + res.status + ")");
-        const json = await res.json();
-        return json.data
-    } catch (e) {
-        console.error("C'è stato un problema nel caricamento anime stagionali, ", e)
-    }
-}
-async function renderCatalogue() {
-    document.getElementById("tabs").style.display = 'none';
-
-    const seasonAnime = await runSeason();
-    const grid = document.getElementById("libraryGrid");
-
-    grid.innerHTML = seasonAnime
-        .map(
-            (a) => `
-        <button class="anime-card" data-id="${a.malId}">
-        ${a.imageUrl ? `<img src="${escapeAttr(a.imageUrl)}" alt="">` : ""}
-        <div class="anime-card-body">
-        <span class="anime-card-title">${escapeHtml(a.title)}</span>
-        <span class="anime-card-meta">${a.episodes != null ? `${a.episodes} ep.` : ""}</span>
-        </div>
-        </button>
-        `
-        )
-        .join("");
-
-    grid.querySelectorAll(".anime-card").forEach((card) => {
-        card.addEventListener("click", () => openModal(card.dataset.id));
-    });
-}
-
 
 /* ---------------- Modale dettaglio ---------------- */
 

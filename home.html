@@ -29,10 +29,23 @@
             <div id="searchPanel" class="search-panel" hidden></div>
         </div>
 
-        <div id="storageBar" class="storage-bar">
-            <span id="storageDot" class="storage-dot"></span>
-            <span id="storageLabel">Controllo dati…</span>
-            <div id="storageActions" class="storage-actions"></div>
+        <div id="pagesWrap" class="pages-wrap">
+            <button class="page-btn">
+                <h2>La tua libreria</h2>
+            </button>
+            <button class="page-btn-unselected" id="catalogue">
+                <h2>Catalogo</h2>
+            </button>
+            <button class="page-btn-unselected" id="accountIcon">
+                <h2>Salvataggio</h2>
+                <div id="accountBurger" style="display: none;">
+                    <div id="storageBar" class="storage-bar">
+                        <span id="storageDot" class="storage-dot"></span>
+                        <span id="storageLabel">Controllo dati…</span>
+                        <div id="storageActions" class="storage-actions"></div>
+                    </div>
+                </div>
+            </button>
         </div>
     </header>
 
@@ -48,8 +61,7 @@
         <section class="library-section">
             <div class="library-head">
                 <div class="title-flex">
-                    <h2 class="section-title" id="library">La tua libreria</h2>
-                    <h2 class="section-title-unselected" id="catalogue">Catalogo</h2>
+                    <h2 class="section-title">La tua libreria</h2>
                 </div>
                 <div id="tabs" class="tabs">
                     <button class="tab active" data-tab="watching">In corso <span id="countWatching">0</span></button>

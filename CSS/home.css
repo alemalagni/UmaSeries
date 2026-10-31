@@ -193,6 +193,7 @@ input:focus-visible,
     font-size: 13px;
 }
 
+#pagesWrap,
 .storage-bar {
     display: flex;
     align-items: center;
@@ -231,6 +232,33 @@ input:focus-visible,
 .storage-actions button:hover {
     border-color: var(--accent);
     color: var(--accent);
+}
+
+.page-btn,
+.page-btn-unselected {
+    background: transparent;
+    border: 0px solid;
+    color: var(--text);
+    font-size: 15px;
+}
+
+.page-btn-unselected {
+    color: #787878;
+    transition: color 0.18s ease-in;
+}
+
+.page-btn-unselected:hover {
+    color: #cfcfcf;
+    transition: color 0.18s ease-in;
+}
+
+/* Account Burger */
+#accountBurger {
+    position: absolute;
+    top: calc(0% + 80px);
+    right: 2%;
+    background-color: var(--bg-card);
+    padding: 5px 10px;
 }
 
 /* ---------- Main layout ---------- */
