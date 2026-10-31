@@ -1,3 +1,7 @@
 dati.json
 .DS_Store
 .gitignore
+node_modules
+JavaScript/firebase-sync.js
+package.json
+package-lock.json
