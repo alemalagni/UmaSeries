@@ -389,6 +389,45 @@ main {
 
 }
 
+#heroCarousel {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+}
+
+.carousel-item {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 74px;
+    padding: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    background: var(--bg-card);
+    opacity: 0.55;
+    scroll-snap-align: start;
+    transition: opacity 0.18s ease, border-color 0.18s ease;
+}
+
+.carousel-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.carousel-item:hover {
+    opacity: 0.85;
+}
+
+.carousel-item.active {
+    border-color: var(--accent);
+    opacity: 1;
+}
+
 /* ---------- Library ---------- */
 
 .library-head {
@@ -691,6 +730,13 @@ select,
 .btn-danger:hover {
     background: var(--danger);
     color: var(--bg-elevated);
+}
+
+.modal-add-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
 }
 
 .modal-close {

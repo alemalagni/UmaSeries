@@ -20,6 +20,7 @@ const state = {
     activeTab: "watching",
     heroIndex: 0,
     searchResults: [],
+    detailCache: {}, // malId -> dati grezzi dell'API, per gli anime non ancora salvati (catalogo/ricerca)
 };
 
 /* ---------------- IndexedDB (solo per ricordare il file handle) ---------------- */
@@ -262,8 +263,8 @@ function saveAnime(anime) {
         genres: Array.isArray(anime.genres) ? anime.genres.map((g) => g.name) : [],
         url: anime.url || "",
         airedString: anime.aired?.string || "",
-        startAired: anime.aired?.from || 'Nessuna data di inizio',
-        endAired: anime.aired?.to || 'Nessuna data di fine',
+        startAired: anime.aired?.from || null,
+        endAired: anime.aired?.to || null,
         rating: anime.rating,
         season: anime.season,
         year: anime.year,
@@ -374,13 +375,12 @@ function fixDuration(duration) {
     return parts.join(' ');
 }
 
-function fixDate(date) {
-    const [year, month, day] = date.split('-').map(Number);
-    const monthName = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
-
-    const parts = [`${day} ${monthName[month - 1]} ${year}`];
-    if (isNaN(year)) return ""
-    return parts
+function fixDate(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d)) return "";
+    const monthName = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+    return `${d.getUTCDate()} ${monthName[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 async function renderHero() {
@@ -389,6 +389,7 @@ async function renderHero() {
 
     if (list.length === 0) {
         host.innerHTML = `<p class="hero-empty">Aggiungi un anime alla libreria per sapere cosa guardare.</p>`;
+        document.getElementById("heroCarousel").innerHTML = "";
         return;
     }
 
@@ -426,16 +427,15 @@ async function renderHero() {
                 <span class="hero-eyebrow" style='color: ${colorHero}'>${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
                 ${pick?.episode ? `<h4 id="hero-title" class="hero-anime">${pick.title}</h4>` : ""}
                 <h3 id="hero-episode">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
-                ${pick?.episode && pick.episode?.duration ? `<h4 class="hero-anime">${fixEpisodeDate(pick.episode.aired)} - ${fixDuration(pick.episode.duration)}</h4>` : ""}
+                <h4 class="hero-anime">${pick?.episode.aired && `${fixEpisodeDate(pick.episode.aired)}`} ${pick?.episode.duration != null ? `- ${fixDuration(pick.episode.duration)}` : ""}</h4>
                 <span class="hero-meta">${total ? `Episodio ${watched + 1 > total ? total : watched + 1} di ${total}` : `Episodi visti: ${watched}`}</span>
                 <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                 <div class="hero-actions">
                     <button class="btn btn-primary" id="heroWatchBtn" style='background-color: ${colorHero}'>Segna episodio visto</button>
-                    ${list.length > 1 ? `<button class="btn btn-ghost" id="heroSkipBtn">Scegli un altro</button>` : ""}
                     <button class="btn btn-ghost" id="heroDetailBtn">Dettagli</button>
                 </div>
                 </div>
-                `;
+            `;
 
     const heroAnime = pick?.episode ? document.getElementById('hero-title') : document.getElementById('hero-episode')
     const heroEpisode = pick?.episode ? document.getElementById('hero-episode') : null
@@ -467,9 +467,20 @@ async function renderHero() {
         })
     }
 
-    document.getElementById("heroWatchBtn").addEventListener("click", () => {
-        updateEntry(pick.malId, { episodesWatched: watched + 1 });
+    document.getElementById("heroWatchBtn").addEventListener("click", async () => {
+        try {
+            const newEpisode = await fetchEpisode(pick.malId, watched + 2)
+            updateEntry(pick.malId, {
+                episodesWatched: watched + 1,
+                episode: newEpisode
+            });
+        } catch (e) {
+            alert('Errore nel caricamento nuovo episodio: ', e)
+            console.error('Errore nel caricamento nuovo episodio: ', e)
+            return
+        }
     });
+
     const skipBtn = document.getElementById("heroSkipBtn");
     if (skipBtn) skipBtn.addEventListener("click", () => {
         state.heroIndex = (state.heroIndex + 1) % list.length;
@@ -477,12 +488,34 @@ async function renderHero() {
     });
     document.getElementById("heroDetailBtn").addEventListener("click", () => openModal(pick.malId));
 
-    // const heroCarousel = document.getElementById("heroCarousel");
-    // console.log(list)
-    // heroCarousel.innerHTML = list.map((l) => {
-    //     `<div key=${l.malId}></div>`
-    // })
+    renderHeroCarousel(list);
+}
 
+
+
+function renderHeroCarousel(list) {
+    const host = document.getElementById("heroCarousel");
+    if (!host) return;
+    if (list.length <= 1) {
+        host.innerHTML = "";
+        return;
+    }
+    host.innerHTML = list
+        .map(
+            (item, i) => `
+        <button class="carousel-item ${i === state.heroIndex ? "active" : ""}" data-index="${i}" title="${escapeAttr(item.title)}">
+            ${item.image ? `<img src="${escapeAttr(item.image)}" alt="">` : ""}
+        </button>
+    `
+        )
+        .join("");
+
+    host.querySelectorAll(".carousel-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            state.heroIndex = Number(btn.dataset.index);
+            renderHero();
+        });
+    });
 }
 
 /* ---------------- Libreria (tabs + griglia) ---------------- */
@@ -490,13 +523,22 @@ async function renderHero() {
 const library = document.getElementById('library')
 const catalogue = document.getElementById('catalogue')
 
-function renderLibrary() {
-    catalogue.addEventListener('click', () => {
-        library.className = 'section-title-unselected'
-        catalogue.className = 'section-title'
-        renderCatalogue()
-    })
+// Registrati una sola volta: prima venivano riaggiunti a ogni render,
+// accumulandosi e facendo scattare il cambio di sezione più volte di seguito.
+catalogue.addEventListener('click', () => {
+    library.className = 'section-title-unselected'
+    catalogue.className = 'section-title'
+    renderCatalogue()
+})
 
+library.addEventListener('click', () => {
+    catalogue.className = 'section-title-unselected'
+    library.className = 'section-title'
+    document.getElementById("tabs").style.display = 'flex';
+    renderLibrary()
+})
+
+function renderLibrary() {
     document.getElementById("countWatching").textContent = entriesByStatus("watching").length;
     document.getElementById("countPlanned").textContent = entriesByStatus("planned").length;
     document.getElementById("countCompleted").textContent = entriesByStatus("completed").length;
@@ -550,13 +592,6 @@ async function runSeason() {
     }
 }
 async function renderCatalogue() {
-    library.addEventListener('click', () => {
-        catalogue.className = 'section-title-unselected'
-        library.className = 'section-title'
-        document.getElementById("tabs").style.display = 'flex';
-        renderLibrary()
-    })
-
     document.getElementById("tabs").style.display = 'none';
 
     const seasonAnime = await runSeason();
@@ -584,12 +619,40 @@ async function renderCatalogue() {
 
 /* ---------------- Modale dettaglio ---------------- */
 
-function openModal(malId) {
-    const a = state.data.anime[malId];
-    if (!a) return;
+async function openModal(malId) {
     const overlay = document.getElementById("modalOverlay");
     const box = document.getElementById("modalBox");
-    overlay.className = ('modal-overlay')
+    overlay.className = "modal-overlay";
+
+    let a = state.data.anime[malId];
+    const inLibrary = !!a;
+
+    if (!a) {
+        // Non è (ancora) in libreria: arriva dal catalogo stagionale o dalla ricerca,
+        // quindi non abbiamo i dettagli completi salvati — li recuperiamo al volo.
+        box.innerHTML = `<button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button><p class="hero-empty">Caricamento dei dettagli…</p>`;
+        document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+        try {
+            if (!state.detailCache[malId]) {
+                const raw = await saveAnimeResult(malId);
+                if (!raw || raw === "Errore" || !raw.malId) throw new Error("dettagli non disponibili");
+                state.detailCache[malId] = raw;
+            }
+            a = saveAnime(state.detailCache[malId]);
+        } catch (e) {
+            console.error("Impossibile caricare i dettagli", e);
+            box.innerHTML = `<button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button><p class="hero-empty">Impossibile caricare i dettagli di questo anime.</p>`;
+            document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+            return;
+        }
+    }
+
+    renderModalBody(a, inLibrary, malId);
+}
+
+function renderModalBody(a, inLibrary, malId) {
+    const box = document.getElementById("modalBox");
+    const overlay = document.getElementById("modalOverlay");
 
     const colors = {
         "TV": "#d48a01",
@@ -599,16 +662,18 @@ function openModal(malId) {
         "spring": "#eeb6bf",
         "summer": "#dc420b",
         "fall": "#d08801",
+        "G": "#6fa84a",
         "PG": "#d0ae01",
-        "R ": "#b80505",
-        "R+": "#a21414"
+        "PG-13": "#d4820a",
+        "R": "#b80505",
+        "R+": "#a21414",
+        "Rx": "#7a0e0e",
     };
-    const rating = a.rating[0] + a.rating[1]
+
+    const ratingCode = a.rating ? a.rating.split(" ")[0] : "";
     const colorType = colors[a.type] || "none";
     const colorSeason = colors[a.season] || "none";
-    const colorRating = colors[rating] || "none";
-
-    console.log(a?.relations)
+    const colorRating = colors[ratingCode] || "none";
 
     box.innerHTML = `
         <button class="modal-close" id="modalCloseBtn" aria-label="Chiudi">×</button>
@@ -616,15 +681,16 @@ function openModal(malId) {
             ${a.image ? `<img src="${escapeAttr(a.image)}" alt="">` : ""}
             <div>
                 <h3 id="modal-title">${escapeHtml(a.title)}</h3>
-                <div class="tag-row"><h4 class="type" style="color: ${colorType}; border-color: ${colorType}">${a.type}</h4> <h5 style="color: ${colorSeason};">${a.season} ${a.year}</h5></div>
-                <div class="modal-meta"><span style="color: ${colorRating};">${a.rating}</span></div>
+                <div class="tag-row">${a.type ? `<h4 class="type" style="color: ${colorType}; border-color: ${colorType}">${a.type}</h4>` : ""} ${a.season ? `<h5 style="color: ${colorSeason};">${a.season} ${a.year || ""}</h5>` : ""}</div>
+                ${a.rating ? `<div class="modal-meta"><span style="color: ${colorRating};">${escapeHtml(a.rating)}</span></div>` : ""}
                 <div class="modal-meta">${[a.score ? `★ ${a.score}` : ""].filter(Boolean).join(" · ")}</div>
-                <div class="modal-meta">${a.startAired ? `${fixDate(a.startAired)}` : "?"}${a.endAired ? ` - ${fixDate(a.endAired)}` : ""}</div>
+                <div class="modal-meta">${a.startAired ? fixDate(a.startAired) : "?"}${a.endAired ? ` - ${fixDate(a.endAired)}` : ""}</div>
                 <div class="modal-meta">${a.duration ? `${a.duration}` : ""}</div>
                 </div>
             </div>
         <div class="tag-row">${a.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join("")}</div>
         ${a.synopsis ? `<p class="modal-synopsis">${escapeHtml(a.synopsis)}</p>` : ""}
+        ${inLibrary ? `
         <div class="field-row">
             <label for="statusSelect">Stato</label>
             <select id="statusSelect">
@@ -641,24 +707,32 @@ function openModal(malId) {
                 <button id="epPlus" aria-label="Aumenta">+</button>
             </div>
         </div>
+        ` : ""}
         ${a.url ? `<p class="hero-meta"><a href="${escapeAttr(a.url)}" target="_blank" rel="noopener" style="color:var(--accent)">Pagina su MyAnimeList ↗</a></p>` : ""}
-        ${a.relations && `
-            <div class=relations-flex>
+        ${a.relations && a.relations.length ? `
+            <div class="relations-flex">
                 ${a.relations.map((r) => `
-                    <div key=${r.malId} class="relation-box">
-                        <h4>${r.relation}</h4>
-                        <h3 class=relation-title>${r.title}</h3>
-                        <span>${r.type}</span>
+                    <div class="relation-box">
+                        <h4>${escapeHtml(r.relation)}</h4>
+                        <h3 class="relation-title">${escapeHtml(r.title)}</h3>
+                        <span>${escapeHtml(r.type)}</span>
                     </div>
                 `).join("")}
-            </div>`
+            </div>` : ""
         }
+        ${inLibrary ? `
         <div class="modal-actions">
             <button class="btn-danger" id="removeBtn">Rimuovi dalla libreria</button>
         </div>
+        ` : `
+        <div class="modal-add-group">
+            <button class="btn btn-primary" data-status="watching">Aggiungi · In corso</button>
+            <button class="btn btn-ghost" data-status="planned">Aggiungi · Da vedere</button>
+            <button class="btn btn-ghost" data-status="completed">Aggiungi · Visto</button>
+        </div>
+        `}
     `;
 
-    overlay.hidden = false;
     document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
     overlay.addEventListener("click", (e) => {
         if (e.target === overlay) closeModal();
@@ -676,25 +750,35 @@ function openModal(malId) {
         }
     })
 
-    document.getElementById("statusSelect").addEventListener("change", (e) => {
-        updateEntry(a.malId, { userStatus: e.target.value });
-        openModal(malId);
-    });
+    if (inLibrary) {
+        document.getElementById("statusSelect").addEventListener("change", (e) => {
+            updateEntry(a.malId, { userStatus: e.target.value });
+            openModal(malId);
+        });
 
-    const epInput = document.getElementById("epInput");
-    function commitEp(val) {
-        let n = Math.max(0, parseInt(val, 10) || 0);
-        if (a.episodesTotal) n = Math.min(n, a.episodesTotal);
-        updateEntry(a.malId, { episodesWatched: n });
-        openModal(malId);
+        const epInput = document.getElementById("epInput");
+        function commitEp(val) {
+            let n = Math.max(0, parseInt(val, 10) || 0);
+            if (a.episodesTotal) n = Math.min(n, a.episodesTotal);
+            updateEntry(a.malId, { episodesWatched: n });
+            openModal(malId);
+        }
+        document.getElementById("epMinus").addEventListener("click", () => commitEp(a.episodesWatched - 1));
+        document.getElementById("epPlus").addEventListener("click", () => commitEp(a.episodesWatched + 1));
+        epInput.addEventListener("change", () => commitEp(epInput.value));
+
+        document.getElementById("removeBtn").addEventListener("click", () => {
+            if (confirm(`Rimuovere "${a.title}" dalla libreria?`)) removeEntry(a.malId);
+        });
+    } else {
+        box.querySelectorAll(".modal-add-group button").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                addToLibrary(a, btn.dataset.status);
+                delete state.detailCache[malId];
+                openModal(malId);
+            });
+        });
     }
-    document.getElementById("epMinus").addEventListener("click", () => commitEp(a.episodesWatched - 1));
-    document.getElementById("epPlus").addEventListener("click", () => commitEp(a.episodesWatched + 1));
-    epInput.addEventListener("change", () => commitEp(epInput.value));
-
-    document.getElementById("removeBtn").addEventListener("click", () => {
-        if (confirm(`Rimuovere "${a.title}" dalla libreria?`)) removeEntry(a.malId);
-    });
 }
 
 function closeModal() {
