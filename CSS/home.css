@@ -640,21 +640,24 @@ h4.type,
 }
 
 .relation-box {
+    background-color: transparent;
     border: 1px solid var(--border-strong);
     color: var(--text-muted);
     padding: 3px 9px;
     border-radius: 10px;
     max-width: 200px;
+    text-align: left;
 }
 
 .relation-box h4 {
     color: #d9b44a;
     margin: 0;
+    margin-bottom: 6px;
 }
 
 .relation-title {
     color: #fff;
-    margin: 0;
+    margin-bottom: 10px;
     text-wrap-mode: nowrap;
     width: 100%;
     overflow: hidden;

@@ -399,7 +399,7 @@ async function renderHero() {
     const watched = pick.episodesWatched || 0;
     const pct = total ? Math.min(100, Math.round((watched / total) * 100)) : 0;
 
-    if (!pick.episode || pick.episode.length === 0) {
+    if (!pick.episode && pick.type !== 'Movie') {
         try {
             const episode = await fetchEpisode(pick.malId, watched + 1)
 
@@ -410,6 +410,26 @@ async function renderHero() {
         } catch (e) {
             console.error("episodio non caricato :( ", e, watched)
         }
+    }
+
+    if (!pick.episode && pick.type === 'Movie') {
+        let [hours, minutes] = pick.duration.split('hr.');
+        hours = hours.trim()
+        minutes = minutes.replace('min.', '').trim()
+        if (hours < 10) hours = `0${hours}`
+        if (minutes < 10) minutes = `0${minutes}`
+        const duration = `${hours}:${minutes}:00`
+
+        const episode = {
+            "malId": pick.malId,
+            "title": null,
+            "episode": 1,
+            "duration": duration,
+            "aired": pick.startAired,
+            "synopsis": pick.synopsis
+        }
+
+        updateEntry(pick.malId, { episode: episode })
     }
 
     let colorHero;
@@ -427,7 +447,7 @@ async function renderHero() {
                 <span class="hero-eyebrow" style='color: ${colorHero}'>${watched > 0 ? "Continua a vedere" : "Inizia a vedere"}</span>
                 ${pick?.episode ? `<h4 id="hero-title" class="hero-anime">${pick.title}</h4>` : ""}
                 <h3 id="hero-episode">${pick?.episode && pick.episode?.title ? pick.episode.title : escapeHtml(pick.title)}</h3>
-                <h4 class="hero-anime">${pick?.episode.aired && `${fixEpisodeDate(pick.episode.aired)}`} ${pick?.episode.duration != null ? `- ${fixDuration(pick.episode.duration)}` : ""}</h4>
+                <h4 class="hero-anime">${pick?.episode?.aired && `${fixEpisodeDate(pick.episode.aired)}`} ${pick?.episode?.duration != null ? `- ${fixDuration(pick.episode.duration)}` : ""}</h4>
                 <span class="hero-meta">${total ? `Episodio ${watched + 1 > total ? total : watched + 1} di ${total}` : `Episodi visti: ${watched}`}</span>
                 <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                 <div class="hero-actions">
@@ -709,14 +729,14 @@ function renderModalBody(a, inLibrary, malId) {
         </div>
         ` : ""}
         ${a.url ? `<p class="hero-meta"><a href="${escapeAttr(a.url)}" target="_blank" rel="noopener" style="color:var(--accent)">Pagina su MyAnimeList ↗</a></p>` : ""}
-        ${a.relations && a.relations.length ? `
+        ${a.relations ? `
             <div class="relations-flex">
                 ${a.relations.map((r) => `
-                    <div class="relation-box">
+                    <button class="relation-box" data-mal-id="${r.malId}">
                         <h4>${escapeHtml(r.relation)}</h4>
                         <h3 class="relation-title">${escapeHtml(r.title)}</h3>
                         <span>${escapeHtml(r.type)}</span>
-                    </div>
+                    </button>
                 `).join("")}
             </div>` : ""
         }
@@ -779,6 +799,21 @@ function renderModalBody(a, inLibrary, malId) {
             });
         });
     }
+
+    document.querySelector('.relations-flex')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.relation-box');
+        if (!btn) return;
+        const type = btn.querySelector('span')?.textContent;
+        const malId = btn.dataset.malId;
+
+        if (type !== 'anime') {
+            alert('Manga non ancora supportati, ci stiamo lavorando')
+            return;
+        }
+
+        closeModal()
+        openModal(malId);
+    });
 }
 
 function closeModal() {
